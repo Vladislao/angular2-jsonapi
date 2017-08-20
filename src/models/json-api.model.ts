@@ -135,10 +135,19 @@ export class JsonApiModel {
     return this._datastore.peekRecord(modelType, id);
   }
 
+  private update<T extends JsonApiModel>(target: T, attributes: T) {
+    for (const key in attributes) {
+      if (attributes.hasOwnProperty(key) && key.indexOf('_') === 0) {
+        target[key] = attributes[key];
+      }
+    }
+    return target;
+  }
+
   private createOrPeek<T extends JsonApiModel>(modelType: ModelType<T>, data: any): T {
     let peek = this._datastore.peekRecord(modelType, data.id);
     if (peek) {
-      return peek;
+      return this.update(peek, new modelType(this._datastore, data));
     }
     let newObject: T = new modelType(this._datastore, data);
     this._datastore.addToStore(newObject);

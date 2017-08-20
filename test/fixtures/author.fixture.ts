@@ -39,11 +39,55 @@ export function getAuthorData(relationship?: string, total?: number): any {
   return response;
 };
 
-export function getIncludedBooks(totalBooks: number, relationship?: string, totalChapters?: number): any[] {
+
+// export function getAuthorDataWithIncluded(total?: number, opts?: object): any {
+//   let data: any = {
+//     'id': AUTHOR_ID,
+//     'type': 'authors',
+//     'attributes': {
+//       'name': AUTHOR_NAME,
+//       'date_of_birth': AUTHOR_BIRTH,
+//       'date_of_death': AUTHOR_DEATH,
+//       'created_at': AUTHOR_CREATED,
+//       'updated_at': AUTHOR_UPDATED
+//     },
+//     'relationships': {
+//       'books': {'links': {'self': '/v1/authors/1/relationships/books', 'related': '/v1/authors/1/books'}}
+//     },
+//     'links': {'self': '/v1/authors/1'}
+//   };
+
+//   const response: any = {
+//     'data': data
+//   };
+
+//   if (total && total > 0) {
+//     data.relationships.books.data = [];
+//     response.included = [];
+//     for (let i = 1; i <= total; i++) {
+//       data.relationships.books.data.push({
+//         'id': '' + i,
+//         'type': 'books'
+//       });
+//       const book = getSampleBook(i, AUTHOR_ID)
+//       response.included.push({
+//         'id': '' + i,
+//         'type': 'books',
+//         'attributes': { ...book.attributes, ...opts }
+//       });
+//     }
+//   }
+
+//   return response;
+// };
+
+export function getIncludedBooks(totalBooks: number, relationship?: string, totalChapters?: number, opts: any = {}): any[] {
   let responseArray: any[] = [];
   let chapterId = 0;
   for (let i = 1; i <= totalBooks; i++) {
     let book: any = getSampleBook(i, AUTHOR_ID);
+    book.attributes = { ...book.attributes, ...opts };
+
     if (relationship && relationship.indexOf('books.chapters') !== -1) {
       book.relationships.chapters.data = [];
       for (let ic = 1; ic <= totalChapters; ic++) {
@@ -52,6 +96,7 @@ export function getIncludedBooks(totalBooks: number, relationship?: string, tota
           'id': '' + chapterId,
           'type': 'chapters'
         });
+
         responseArray.push({
           'id': '' + chapterId,
           'type': 'chapters',
@@ -59,7 +104,8 @@ export function getIncludedBooks(totalBooks: number, relationship?: string, tota
             'title': CHAPTER_TITLE,
             'ordering': chapterId,
             'created_at': '2016-10-01T12:54:32Z',
-            'updated_at': '2016-10-01T12:54:32Z'
+            'updated_at': '2016-10-01T12:54:32Z',
+            ...opts
           },
           'relationships': {
             'book': {

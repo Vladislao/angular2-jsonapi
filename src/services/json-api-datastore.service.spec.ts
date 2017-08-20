@@ -1,6 +1,6 @@
 import {TestBed} from '@angular/core/testing';
 import {Author} from '../../test/models/author.model';
-import {AUTHOR_BIRTH, AUTHOR_ID, AUTHOR_NAME, BOOK_TITLE, getAuthorData} from '../../test/fixtures/author.fixture';
+import {AUTHOR_BIRTH, AUTHOR_ID, AUTHOR_NAME, BOOK_TITLE, getAuthorData, getIncludedBooks} from '../../test/fixtures/author.fixture';
 import {
     BaseRequestOptions,
     ConnectionBackend,
@@ -245,6 +245,107 @@ describe('JsonApiDatastore', () => {
                 expect(author).toBeDefined();
                 expect(author.id).toBe(AUTHOR_ID);
                 expect(author.date_of_birth).toEqual(moment(AUTHOR_BIRTH, 'YYYY-MM-DD').toDate());
+            });
+        });
+
+        it('should update included models (multiple depth)', () => {
+            const responses = [
+                new Response(
+                    new ResponseOptions({
+                        body: JSON.stringify({
+                            'data': getAuthorData('books', 5),
+                            'included': getIncludedBooks(5, 'books.chapters', 3, { title: 'first' })
+                        })
+                    })
+                ),
+                new Response(
+                    new ResponseOptions({
+                        body: JSON.stringify({
+                            'data': getAuthorData('books', 5),
+                            'included': getIncludedBooks(5, 'books.chapters', 3, { title: 'second' })
+                        })
+                    })
+                )
+            ]
+
+            backend.connections.subscribe((c: MockConnection) => {
+                const response = responses.shift();
+                c.mockRespond(response);
+            });
+
+            datastore.findRecord(Author, '1').subscribe((author) => {
+                expect(author).toBeDefined();
+                expect(author.id).toBe(AUTHOR_ID);
+                expect(author.date_of_birth).toEqual(moment(AUTHOR_BIRTH, 'YYYY-MM-DD').toDate());
+
+                expect(author.books.length).toEqual(5);
+                expect(author.books.every(b => b.title === 'first')).toEqual(true);
+
+                expect(author.books.every(b => b.chapters.length === 3)).toEqual(true);
+                expect(author.books.every(b => b.chapters.every(c => c.title === 'first'))).toEqual(true);
+
+                datastore.findRecord(Author, '1').subscribe((author2) => {
+                    expect(author2).toBeDefined();
+                    expect(author2.id).toBe(AUTHOR_ID);
+                    expect(author2.date_of_birth).toEqual(moment(AUTHOR_BIRTH, 'YYYY-MM-DD').toDate());
+
+                    expect(author2.books.length).toEqual(5);
+                    expect(author2.books.every(b => b.title === 'second')).toEqual(true);
+
+                    expect(author2.books.every(b => b.chapters.length === 3)).toEqual(true);
+                    expect(author2.books.every(b => b.chapters.every(c => c.title === 'second'))).toEqual(true);
+                });
+            });
+        });
+
+        it('should not break existing relations', () => {
+            const responses = [
+                new Response(
+                    new ResponseOptions({
+                        body: JSON.stringify({
+                            'data': getAuthorData('books', 5),
+                            'included': getIncludedBooks(5, 'books.chapters', 3, { title: 'first' })
+                        })
+                    })
+                ),
+                new Response(
+                    new ResponseOptions({
+                        body: JSON.stringify({
+                            'data': getAuthorData('books', 5),
+                            'included': getIncludedBooks(5, null, 0, { title: 'second' })
+                        })
+                    })
+                )
+            ]
+
+            backend.connections.subscribe((c: MockConnection) => {
+                const response = responses.shift();
+                c.mockRespond(response);
+            });
+
+            datastore.findRecord(Author, '1').subscribe((author) => {
+                expect(author).toBeDefined();
+                expect(author.id).toBe(AUTHOR_ID);
+                expect(author.date_of_birth).toEqual(moment(AUTHOR_BIRTH, 'YYYY-MM-DD').toDate());
+
+                expect(author.books.length).toEqual(5);
+                expect(author.books.every(b => b.title === 'first')).toEqual(true);
+
+                expect(author.books.every(b => b.chapters.length === 3)).toEqual(true);
+                expect(author.books.every(b => b.chapters.every(c => c.title === 'first'))).toEqual(true);
+
+                datastore.findRecord(Author, '1').subscribe((author2) => {
+                    // author should be updated
+                    expect(author2).toBeDefined();
+                    expect(author2.id).toBe(AUTHOR_ID);
+                    expect(author2.date_of_birth).toEqual(moment(AUTHOR_BIRTH, 'YYYY-MM-DD').toDate());
+                    // books should be updated
+                    expect(author2.books.length).toEqual(5);
+                    expect(author2.books.every(b => b.title === 'second')).toEqual(true);
+                    // chapters should be available
+                    expect(author2.books.every(b => b.chapters.length === 3)).toEqual(true);
+                    expect(author2.books.every(b => b.chapters.every(c => c.title === 'first'))).toEqual(true);
+                });
             });
         });
 
